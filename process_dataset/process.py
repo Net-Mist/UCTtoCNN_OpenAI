@@ -22,8 +22,8 @@ for simulation_path in simulation_dir:
         nb_frames += len(glob.glob(action_dir + '/*'))
     print(nb_frames, "frames")
 
-    images = np.zeros((nb_frames, 84, 84, 4), dtype=int)
-    image_index_to_action_index = np.zeros(nb_frames, dtype=int)
+    images = np.zeros((nb_frames, 84, 84, 4), dtype='b')
+    image_index_to_action_index = np.zeros(nb_frames, dtype='b')
 
     i = 0
     for action_dir in action_dirs:
