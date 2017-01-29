@@ -43,13 +43,16 @@ def load_data(testing_percentage: float, validation_percentage: float) -> {}:
             images = np.append(images, file['images'], axis=0)
             labels = np.append(labels, file['image_index_to_action_index'])
 
-        print(images.shape)
-        print(labels.shape)
+            # print(images.shape)
+            # print(labels.shape)
 
     # Subtract the mean and scale the input to lie in [-1,1] TODO : substract the real mean...
+    print("Convert to float64")
     images = np.array(images, dtype=np.float16)
-    images = images / 255
-    images = images - 0.5
+    print("Scale")
+    images = images / (255 / 2)
+    print("Center")
+    images = images - 1
 
     # Prepare the result
     result = {}
@@ -99,7 +102,7 @@ def get_random_cached_images(image_lists: {}, how_many: int, category: str) -> (
 
         # randomly chose an image among the chosen class
         image_index = random.randrange(len(image_lists[label_index][category]))
-        image = image_lists[label_index][category][state_index]
+        image = image_lists[label_index][category][image_index]
 
         # here we don't need to to this because we're using tf.nn.sparse_softmax_cross_entropy_with_logits
         # ground_truth = np.zeros(class_count, dtype=np.float32)

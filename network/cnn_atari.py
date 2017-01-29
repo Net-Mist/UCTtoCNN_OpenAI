@@ -32,7 +32,7 @@ def placeholders_training(batch_size: int) -> (tf.Tensor, tf.Tensor):
     return image_placeholder, labels_placeholder
 
 
-def inference(image_placeholder: tf.placeholder, num_action: int) -> tf.Tensor:
+def inference(image_placeholder: tf.placeholder, num_action: int, batch_size: int) -> tf.Tensor:
     """
     Build the CNN model up to where it may be used for inference.
     The model is built according to the original UCTtoCNN paper
@@ -55,9 +55,11 @@ def inference(image_placeholder: tf.placeholder, num_action: int) -> tf.Tensor:
         h = tf.tanh(tf.nn.bias_add(conv, biases))
 
     with tf.name_scope('fully_connected'):
-        weights = tf.Variable(initial_value=tf.truncated_normal(shape=[32, 256], stddev=0.1), name='Weights')
+        h = tf.reshape(h, [batch_size, 11 * 11 * 32])
+
+        weights = tf.Variable(initial_value=tf.truncated_normal(shape=[11 * 11 * 32, 256], stddev=0.1), name='Weights')
         biases = tf.Variable(initial_value=tf.constant(value=0.1, shape=[256], dtype=tf.float32), name='biases')
-        hidden = tf.nn.relu(tf.matmul(h, weights) + biases)
+        h = tf.nn.relu(tf.matmul(h, weights) + biases)
 
     with tf.name_scope('final_layer'):
         weights = tf.Variable(initial_value=tf.truncated_normal(shape=[256, num_action], stddev=0.1), name='Weights')
@@ -108,10 +110,11 @@ def training(loss, learning_rate):
     # Create a variable to track the global step.
     global_step = tf.Variable(0, name='global_step', trainable=False)
     # Create the gradient descent optimizer with the given learning rate.
+    optimizer = tf.train.AdamOptimizer(learning_rate)  # from the website TODO: tester l'autre
     # optimizer = tf.train.GradientDescentOptimizer(learning_rate)  # from the website TODO: tester l'autre
     # optimizer = tf.train.RMSPropOptimizer(learning_rate * (tf.pow(0.9, (global_step / 1000))),
     #                                       decay=0.9)  # from VIN implementation
-    optimizer = tf.train.RMSPropOptimizer(learning_rate=learning_rate, epsilon=1e-6, centered=True)
+    # optimizer = tf.train.RMSPropOptimizer(learning_rate=learning_rate, epsilon=1e-6, centered=True)
     # Use the optimizer to apply the gradients that minimize the loss
     # (and also increment the global step counter) as a single training step.
     train_op = optimizer.minimize(loss, global_step=global_step)
@@ -136,5 +139,6 @@ def evaluation(logits, labels):
     # the examples where the label is in the top k (here k=1)
     # of all logits for that example.
     correct = tf.nn.in_top_k(logits, labels, 1)
-    # Return the number of true entries.
-    return tf.reduce_sum(tf.cast(correct, tf.int32))
+    accuracy = tf.reduce_mean(tf.cast(correct, tf.float32))
+    tf.summary.scalar('accuracy', accuracy)
+    return accuracy
