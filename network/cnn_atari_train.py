@@ -70,10 +70,7 @@ def do_eval(sess, eval_correct, image_pl, labels_placeholder, category, image_li
 
 
 def main():
-    # Look at the folder structure, and create lists of all the images.
-    image_lists = load_data(FLAGS.testing_percentage, FLAGS.validation_percentage)
 
-    print('number of labels : ', len(image_lists))
 
     with tf.Graph().as_default():
         print('Create network placeholders')
@@ -109,6 +106,11 @@ def main():
         # Run the Op to initialize the variables.
         print('INIT ALL !!!!!')
         sess.run(init)
+
+        # Look at the folder structure, and create lists of all the images.
+        image_lists = load_data(FLAGS.testing_percentage, FLAGS.validation_percentage)
+
+        print('number of labels : ', len(image_lists))
 
         class_count = len(image_lists)
         if class_count == 0:

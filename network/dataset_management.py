@@ -27,32 +27,38 @@ def load_data(testing_percentage: float, validation_percentage: float) -> {}:
     images = []
     labels = []
 
-    dataset_files = glob.glob('../*.npz')
+    dataset_files = glob.glob('/home/mist/Projects/Dissertation/data_from_cluster/*.npz')
     dataset_files.sort()
 
-    first_time = True
+    # We need to know the total amount of data (it's dirty..)
+    print("Computing the total amount of data. We can have this information in the processing")
+    # for dataset_file in dataset_files:
+    #     print(dataset_file)
+    #     file = np.load(dataset_file)
+    total = 81671
+    images = np.zeros((total, 84, 84, 4), dtype=np.float16)
+    labels = np.zeros(total, dtype='b')
+
+    actuel = 0
     for dataset_file in dataset_files:
         print(dataset_file)
         file = np.load(dataset_file)
 
-        if first_time:
-            images = file['images']
-            labels = file['image_index_to_action_index']
-            first_time = False
-        else:
-            images = np.append(images, file['images'], axis=0)
-            labels = np.append(labels, file['image_index_to_action_index'])
+        images[actuel:actuel+file['images'].shape[0], :, :, :] = file['images']
+        labels[actuel:actuel+file['images'].shape[0]] = file['image_index_to_action_index']
 
-            # print(images.shape)
-            # print(labels.shape)
+        actuel += file['images'].shape[0]
+
+        # print(images.shape)
+        # print(labels.shape)
 
     # Subtract the mean and scale the input to lie in [-1,1] TODO : substract the real mean...
-    print("Convert to float64")
-    images = np.array(images, dtype=np.float16)
-    print("Scale")
-    images = images / (255 / 2)
-    print("Center")
-    images = images - 1
+    # print("Convert to float64")
+    # images = np.array(images, dtype=np.float16)
+    # print("Scale")
+    # images = images / (255 / 2)
+    # print("Center")
+    # images = images - 1
 
     # Prepare the result
     result = {}

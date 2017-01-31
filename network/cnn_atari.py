@@ -11,6 +11,7 @@ Implements the tensorflow inference/loss/training pattern for model building.
 
 import tensorflow as tf
 import math
+from tools import *
 
 
 def placeholders_openai() -> tf.Tensor:
@@ -42,31 +43,17 @@ def inference(image_placeholder: tf.placeholder, num_action: int, batch_size: in
     :return: tensor with the computed logits
     """
 
-    with tf.name_scope('Convolution_1'):
-        kernel = tf.Variable(initial_value=tf.truncated_normal(shape=[8, 8, 4, 16], stddev=0.1), name='Kernel')
-        biases = tf.Variable(initial_value=tf.constant(value=0.1, shape=[16], dtype=tf.float32), name='biases')
-        conv = tf.nn.conv2d(image_placeholder, kernel, [1, 4, 4, 1], padding='SAME')
-        h = tf.tanh(tf.nn.bias_add(conv, biases))
-
-    with tf.name_scope('Convolution_2'):
-        kernel = tf.Variable(initial_value=tf.truncated_normal(shape=[4, 4, 16, 32], stddev=0.1), name='Kernel')
-        biases = tf.Variable(initial_value=tf.constant(value=0.1, shape=[32], dtype=tf.float32), name='biases')
-        conv = tf.nn.conv2d(h, kernel, [1, 2, 2, 1], padding='SAME')
-        h = tf.tanh(tf.nn.bias_add(conv, biases))
-
-    with tf.name_scope('fully_connected'):
-        h = tf.reshape(h, [batch_size, 11 * 11 * 32])
-
-        weights = tf.Variable(initial_value=tf.truncated_normal(shape=[11 * 11 * 32, 256], stddev=0.1), name='Weights')
-        biases = tf.Variable(initial_value=tf.constant(value=0.1, shape=[256], dtype=tf.float32), name='biases')
-        h = tf.nn.relu(tf.matmul(h, weights) + biases)
+    h = convolution_layer_tanh([8, 8, 4, 16], [1, 4, 4, 1], image_placeholder)
+    h = convolution_layer_tanh([4, 4, 16, 32], [1, 2, 2, 1], h)
+    h = tf.reshape(h, [batch_size, 11 * 11 * 32])
+    h = fully_connected_relu(11 * 11 * 32, 256, h)
 
     with tf.name_scope('final_layer'):
         weights = tf.Variable(initial_value=tf.truncated_normal(shape=[256, num_action], stddev=0.1), name='Weights')
         biases = tf.Variable(initial_value=tf.constant(value=0.1, shape=[num_action], dtype=tf.float32), name='biases')
 
         logits = tf.matmul(h, weights) + biases
-        softact = tf.nn.softmax(logits, name='softact')
+        # softact = tf.nn.softmax(logits, name='softact')
 
     return logits
 
