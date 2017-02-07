@@ -9,17 +9,16 @@ Implements the tensorflow inference/loss/training pattern for model building.
 3. training() - Adds to the loss model the Ops required to generate and apply gradients.
 """
 
-import tensorflow as tf
-import math
 from tools import *
 
 
-def placeholders_openai() -> tf.Tensor:
+def placeholders_openai():
     """
     :return: the placeholders
     """
     image_placeholder = tf.placeholder(tf.float32, shape=(1, 84, 84, 4), name='input_image')
-    return image_placeholder
+    keep_prob_placeholder = tf.placeholder(tf.float32, name='Dropout_probability')
+    return image_placeholder, keep_prob_placeholder
 
 
 def placeholders_training(batch_size: int) -> (tf.Tensor, tf.Tensor):
@@ -29,11 +28,12 @@ def placeholders_training(batch_size: int) -> (tf.Tensor, tf.Tensor):
     """
     image_placeholder = tf.placeholder(tf.float32, shape=(batch_size, 84, 84, 4), name='input_image')
     labels_placeholder = tf.placeholder(tf.int32, shape=batch_size, name='Input_label')
+    keep_prob_placeholder = tf.placeholder(tf.float32, name='Dropout_probability')
 
-    return image_placeholder, labels_placeholder
+    return image_placeholder, labels_placeholder, keep_prob_placeholder
 
 
-def inference(image_placeholder: tf.placeholder, num_action: int, batch_size: int) -> tf.Tensor:
+def inference(image_placeholder: tf.placeholder, keep_prob_placeholder, num_action: int, batch_size: int) -> tf.Tensor:
     """
     Build the CNN model up to where it may be used for inference.
     The model is built according to the original UCTtoCNN paper
@@ -43,10 +43,14 @@ def inference(image_placeholder: tf.placeholder, num_action: int, batch_size: in
     :return: tensor with the computed logits
     """
 
-    h = convolution_layer_tanh([8, 8, 4, 16], [1, 4, 4, 1], image_placeholder)
+    h = tf.truediv(image_placeholder, tf.constant(255 / 2, dtype=tf.float32))
+    h = tf.subtract(h, tf.constant(1, dtype=tf.float32))
+
+    h = convolution_layer_tanh([8, 8, 4, 16], [1, 4, 4, 1], h)
     h = convolution_layer_tanh([4, 4, 16, 32], [1, 2, 2, 1], h)
     h = tf.reshape(h, [batch_size, 11 * 11 * 32])
     h = fully_connected_relu(11 * 11 * 32, 256, h)
+    h = tf.nn.dropout(h, keep_prob_placeholder)
 
     with tf.name_scope('final_layer'):
         weights = tf.Variable(initial_value=tf.truncated_normal(shape=[256, num_action], stddev=0.1), name='Weights')

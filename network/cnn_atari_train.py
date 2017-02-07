@@ -20,17 +20,19 @@ NUMBER_BLOCK = int(160 / BLOCK_SIZE)
 K_REC = 40
 
 
-def fill_feed_dict(category, image_lists, image_pl, labels_pl):
+def fill_feed_dict(category, image_lists, image_pl, labels_pl, keep_prob_placeholder, keep_prob):
     images, labels = get_random_cached_images(image_lists, FLAGS.batch_size, category)
 
     feed_dict = {
         image_pl: images,
-        labels_pl: labels
+        labels_pl: labels,
+        keep_prob_placeholder: keep_prob
     }
     return feed_dict
 
 
-def do_eval(sess, eval_correct, image_pl, labels_placeholder, category, image_lists, writer, summary, step):
+def do_eval(sess, eval_correct, image_pl, labels_placeholder, keep_prob_placeholder, category, image_lists, writer,
+            summary, step):
     """
     Runs one evaluation against the full epoch of data.
     :param sess: The session in which the model has been trained.
@@ -40,7 +42,7 @@ def do_eval(sess, eval_correct, image_pl, labels_placeholder, category, image_li
     :param category:
     :param image_lists:
     """
-    feed_dict = fill_feed_dict(category, image_lists, image_pl, labels_placeholder)
+    feed_dict = fill_feed_dict(category, image_lists, image_pl, labels_placeholder, keep_prob_placeholder, 1)
     accuracy = sess.run(eval_correct, feed_dict=feed_dict)
     summary_str = sess.run(summary, feed_dict=feed_dict)
     writer.add_summary(summary_str, step)
@@ -70,13 +72,11 @@ def do_eval(sess, eval_correct, image_pl, labels_placeholder, category, image_li
 
 
 def main():
-
-
     with tf.Graph().as_default():
         print('Create network placeholders')
-        image_placeholder, labels_placeholder = placeholders_training(FLAGS.batch_size)
+        image_placeholder, labels_placeholder, keep_prob_placeholder = placeholders_training(FLAGS.batch_size)
         print('Create the inference part')
-        logits = inference(image_placeholder, 3, FLAGS.batch_size)
+        logits = inference(image_placeholder, keep_prob_placeholder, 3, FLAGS.batch_size)
 
         print('Create the training part')
         loss = classification_loss(logits, labels_placeholder)
@@ -125,7 +125,8 @@ def main():
 
             # Fill a feed dictionary with the actual set of images and labels
             # for this particular training step.
-            feed_dict = fill_feed_dict('training', image_lists, image_placeholder, labels_placeholder)
+            feed_dict = fill_feed_dict('training', image_lists, image_placeholder, labels_placeholder,
+                                       keep_prob_placeholder, 0.75)
 
             # print(feed_dict)
             # print("plip")
@@ -142,7 +143,8 @@ def main():
 
             # Write the summaries and print an overview fairly often.
             if step % 100 == 0:
-                do_eval(sess, eval_correct, image_placeholder, labels_placeholder, 'training', image_lists,
+                do_eval(sess, eval_correct, image_placeholder, labels_placeholder, keep_prob_placeholder, 'training',
+                        image_lists,
                         train_writer, summary, step)
                 # # Print status to stdout.
                 # print('Step %d: loss = %.2f (%.3f sec)' % (step, loss_value, duration))
@@ -163,17 +165,18 @@ def main():
                 # do_eval(sess, eval_correct, images_placeholder, labels_placeholder, 'validation', image_lists)
                 # Evaluate against the test set.
                 # print('Test Data Eval:')
-                do_eval(sess, eval_correct, image_placeholder, labels_placeholder, 'testing', image_lists, test_writer,
+                do_eval(sess, eval_correct, image_placeholder, labels_placeholder, keep_prob_placeholder, 'testing',
+                        image_lists, test_writer,
                         summary, step)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--how_many_training_steps', type=int, default=200000,
+    parser.add_argument('--how_many_training_steps', type=int, default=20000000,
                         help='How many training steps to run before ending.')
     parser.add_argument('--learning_rate', type=float, default=0.0001,
                         help='How large a learning rate to use when training.')
-    parser.add_argument('--testing_percentage', type=int, default=20,
+    parser.add_argument('--testing_percentage', type=int, default=10,
                         help='What percentage of images to use as a test set.')
     parser.add_argument('--validation_percentage', type=int, default=0,
                         help='What percentage of images to use as a validation set.')

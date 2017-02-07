@@ -35,8 +35,12 @@ def load_data(testing_percentage: float, validation_percentage: float) -> {}:
     # for dataset_file in dataset_files:
     #     print(dataset_file)
     #     file = np.load(dataset_file)
-    total = 81671
-    images = np.zeros((total, 84, 84, 4), dtype=np.float16)
+
+    # 20 games : 81671
+    # 0->34 : 81671 + 36403 + 18149
+    # 0->49 : 81671 + 36403 + 18149 + 59730
+    total = 81671 + 36403 + 18149 + 59730
+    images = np.zeros((total, 84, 84, 4), dtype='b')
     labels = np.zeros(total, dtype='b')
 
     actuel = 0
@@ -44,8 +48,8 @@ def load_data(testing_percentage: float, validation_percentage: float) -> {}:
         print(dataset_file)
         file = np.load(dataset_file)
 
-        images[actuel:actuel+file['images'].shape[0], :, :, :] = file['images']
-        labels[actuel:actuel+file['images'].shape[0]] = file['image_index_to_action_index']
+        images[actuel:actuel + file['images'].shape[0], :, :, :] = file['images']
+        labels[actuel:actuel + file['images'].shape[0]] = file['image_index_to_action_index']
 
         actuel += file['images'].shape[0]
 
@@ -110,10 +114,18 @@ def get_random_cached_images(image_lists: {}, how_many: int, category: str) -> (
         image_index = random.randrange(len(image_lists[label_index][category]))
         image = image_lists[label_index][category][image_index]
 
-        # here we don't need to to this because we're using tf.nn.sparse_softmax_cross_entropy_with_logits
-        # ground_truth = np.zeros(class_count, dtype=np.float32)
-        # ground_truth[label_index] = 1.0
-        images.append(image)
-        labels.append(label_index)
+        # Maybe take the symmetric of the image to increase dataset size
+        if random.randrange(2) == 0:
+            # take the symmetric
+            images.append(image[::-1, :])
+            if label_index == 1:
+                labels.append(2)
+            elif label_index == 2:
+                labels.append(1)
+            else:
+                labels.append(0)
+        else:
+            images.append(image)
+            labels.append(label_index)
 
     return images, labels
