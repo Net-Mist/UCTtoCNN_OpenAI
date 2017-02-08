@@ -5,34 +5,30 @@ https://github.com/tensorflow/tensorflow/blob/master/tensorflow/examples/tutoria
 """
 
 from cnn_atari import *
-from dataset_management import *
+from dataset_management_cluster import *
 import time
 import os
 import argparse
 import os.path
 import tensorflow as tf
+import random
 
 # program flags. For more details see the end of this file
 FLAGS = None
 
-BLOCK_SIZE = 8  # Should be a divisor of 160
-NUMBER_BLOCK = int(160 / BLOCK_SIZE)
-K_REC = 40
-
 
 def fill_feed_dict(category, image_lists, image_pl, labels_pl, keep_prob_placeholder, keep_prob):
-    images, labels = get_random_cached_images(image_lists, FLAGS.batch_size, category)
+    images, labels, init_index = get_random_cached_images(image_lists, FLAGS.batch_size, category)
 
     feed_dict = {
         image_pl: images,
         labels_pl: labels,
         keep_prob_placeholder: keep_prob
     }
-    return feed_dict
+    return feed_dict, init_index
 
 
-def do_eval(sess, eval_correct, image_pl, labels_placeholder, keep_prob_placeholder, category, image_lists, writer,
-            summary, step):
+def do_eval(sess, eval_correct, feed_dict, category, writer, summary, step):
     """
     Runs one evaluation against the full epoch of data.
     :param sess: The session in which the model has been trained.
@@ -42,7 +38,7 @@ def do_eval(sess, eval_correct, image_pl, labels_placeholder, keep_prob_placehol
     :param category:
     :param image_lists:
     """
-    feed_dict = fill_feed_dict(category, image_lists, image_pl, labels_placeholder, keep_prob_placeholder, 1)
+
     accuracy = sess.run(eval_correct, feed_dict=feed_dict)
     summary_str = sess.run(summary, feed_dict=feed_dict)
     writer.add_summary(summary_str, step)
@@ -50,38 +46,18 @@ def do_eval(sess, eval_correct, image_pl, labels_placeholder, keep_prob_placehol
 
     print(F"Step: {step}, category : {category}, accuracy: {accuracy}")
 
-    # # Compute the number of data to test
-    # num_examples = 0
-    # for label_name in image_lists:
-    #     num_examples += len(image_lists[label_name][category])
-    # if num_examples > FLAGS.eval_step_number:
-    #     num_examples = FLAGS.eval_step_number
-    # steps_per_epoch = num_examples // FLAGS.batch_size
-    # num_examples = steps_per_epoch * FLAGS.batch_size
-    #
-    # if num_examples == 0:
-    #     num_examples = 1
-
-    # true_count = 0  # Counts the number of correct predictions.
-    # for step in range(steps_per_epoch):
-    #     feed_dict = fill_feed_dict(category, image_lists, image_pl, labels_placeholder)
-    #     true_count += sess.run(eval_correct, feed_dict=feed_dict)
-    # precision = float(true_count) / num_examples
-    # print('  Num examples: %d  Num correct: %d  Precision @ 1: %0.04f' %
-    #       (num_examples, true_count, precision))
-
 
 def main():
     with tf.Graph().as_default():
+
+        # Create the neural network
         print('Create network placeholders')
         image_placeholder, labels_placeholder, keep_prob_placeholder = placeholders_training(FLAGS.batch_size)
         print('Create the inference part')
         logits = inference(image_placeholder, keep_prob_placeholder, 3, FLAGS.batch_size)
-
         print('Create the training part')
         loss = classification_loss(logits, labels_placeholder)
         train_op = training(loss, FLAGS.learning_rate)
-
         print('Create the evaluation part')
         eval_correct = evaluation(logits, labels_placeholder)
 
@@ -97,83 +73,72 @@ def main():
         # Create a session for running Ops on the Graph.
         sess = tf.Session()
 
-        # Instantiate a SummaryWriter to output summaries and the Graph.
+        # Instantiate SummaryWriters to output summaries and the Graph.
         train_writer = tf.summary.FileWriter(FLAGS.log_dir + '/train', sess.graph)
         test_writer = tf.summary.FileWriter(FLAGS.log_dir + '/test', sess.graph)
 
-        # And then after everything is built:
-
         # Run the Op to initialize the variables.
-        print('INIT ALL !!!!!')
+        print('Init the neural network')
         sess.run(init)
 
-        # Look at the folder structure, and create lists of all the images.
-        image_lists = load_data(FLAGS.testing_percentage, FLAGS.validation_percentage)
+        for epoch_i in range(FLAGS.how_many_epochs):
+            print("epoch n'" + epoch_i)
+            files_to_load = list(range(1, FLAGS.total_number_file + 1))
 
-        print('number of labels : ', len(image_lists))
+            # if there is still files to load
+            while files_to_load:
+                # select a certain amount of files in the list files_to_load. The random seed is fixed because if
+                # we work with multiple epoch, we need to have the same testing and training set.
+                files_loaded = []
+                for _ in range(min(FLAGS.number_file_per_iteration, len(files_to_load))):
+                    random.seed(files_to_load)
+                    index = random.randrange(len(files_to_load))
+                    files_loaded.append(files_to_load[index])
+                    files_to_load = files_to_load[:index] + files_to_load[index + 1:]
 
-        class_count = len(image_lists)
-        if class_count == 0:
-            print('No valid folders of images found at ' + FLAGS.image_dir)
-        if class_count == 1:
-            print('Only one valid folder of images found at ' + FLAGS.image_dir +
-                  ' - multiple classes are needed for classification.')
+                # Load the data and split them randomly between training, testing and validation set
+                image_lists = load_data(files_to_load, FLAGS.files_dir, FLAGS.testing_percentage,
+                                        FLAGS.validation_percentage)
 
-        # Start the training loop.
-        for step in range(FLAGS.how_many_training_steps):
-            start_time = time.time()
+                # Start the training loop.
+                how_many_training_steps = int(len(image_lists['training']['data'])/FLAGS.batch_size)
 
-            # Fill a feed dictionary with the actual set of images and labels
-            # for this particular training step.
-            feed_dict = fill_feed_dict('training', image_lists, image_placeholder, labels_placeholder,
-                                       keep_prob_placeholder, 0.75)
+                for step in range(how_many_training_steps):
+                    start_time = time.time()
+                    feed_dict, init_index = fill_feed_dict('training', image_lists, image_placeholder,
+                                                           labels_placeholder,
+                                                           keep_prob_placeholder, 1.0)
 
-            # print(feed_dict)
-            # print("plip")
-            # Run one step of the model.  The return values are the activations
-            # from the `train_op` (which is discarded) and the `loss` Op.  To
-            # inspect the values of your Ops or variables, you may include them
-            # in the list passed to sess.run() and the value tensors will be
-            # returned in the tuple from the call.
-            _, loss_value = sess.run([train_op, loss], feed_dict=feed_dict)
+                    if init_index:
+                        print("reinitialise cached images for training set")
 
-            # print("plop")
+                    _, loss_value = sess.run([train_op, loss], feed_dict=feed_dict)
 
-            duration = time.time() - start_time
+                    duration = time.time() - start_time
+                    print("duration : ", duration)
 
-            # Write the summaries and print an overview fairly often.
-            if step % 100 == 0:
-                do_eval(sess, eval_correct, image_placeholder, labels_placeholder, keep_prob_placeholder, 'training',
-                        image_lists,
-                        train_writer, summary, step)
-                # # Print status to stdout.
-                # print('Step %d: loss = %.2f (%.3f sec)' % (step, loss_value, duration))
-                # # Update the events file.
-                # summary_str = sess.run(summary, feed_dict=feed_dict)
-                # train_writer.add_summary(summary_str, step)
-                # train_writer.flush()
+                    # Write the summaries and save a checkpoint fairly often.
+                    if (step + 1) % FLAGS.eval_step_interval == 0 or (step + 1) == how_many_training_steps:
+                        # Save
+                        checkpoint_file = os.path.join(FLAGS.log_dir, 'model.ckpt')
+                        saver.save(sess, checkpoint_file, global_step=step)
 
-            # Save a checkpoint and evaluate the model periodically.
-            if (step + 1) % FLAGS.eval_step_interval == 0 or (step + 1) == FLAGS.how_many_training_steps:
-                checkpoint_file = os.path.join(FLAGS.log_dir, 'model.ckpt')
-                saver.save(sess, checkpoint_file, global_step=step)
-                # Evaluate against the training set.
-                # print('Training Data Eval:')
+                        # Eval training
+                        do_eval(sess, eval_correct, feed_dict, 'training', train_writer, summary, step)
 
-                # Evaluate against the validation set.
-                # print('Validation Data Eval:')
-                # do_eval(sess, eval_correct, images_placeholder, labels_placeholder, 'validation', image_lists)
-                # Evaluate against the test set.
-                # print('Test Data Eval:')
-                do_eval(sess, eval_correct, image_placeholder, labels_placeholder, keep_prob_placeholder, 'testing',
-                        image_lists, test_writer,
-                        summary, step)
+                        # Eval testing
+                        feed_dict, init_index = fill_feed_dict('testing', image_lists, image_placeholder,
+                                                               labels_placeholder,
+                                                               keep_prob_placeholder, 1.0)
+                        do_eval(sess, eval_correct, feed_dict, 'testing', test_writer, summary, step)
+                        if init_index:
+                            print("reinitialise cached images for testing set")
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--how_many_training_steps', type=int, default=20000000,
-                        help='How many training steps to run before ending.')
+    parser.add_argument('--how_many_epochs', type=int, default=3,
+                        help='How many epochs to run before ending.')
     parser.add_argument('--learning_rate', type=float, default=0.0001,
                         help='How large a learning rate to use when training.')
     parser.add_argument('--testing_percentage', type=int, default=10,
@@ -185,6 +150,14 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', type=int, default=50, help='How many images to train on at a time.')
     parser.add_argument('--log_dir', type=str, default='/tmp/TensorFlow-VIN',
                         help='Path to folders to log training.')
+    # For the cluster
+    parser.add_argument('--files_dir', type=str, default='/hpctmp2/e0046667/CNN',
+                        help='Path to the folder which contain the npz files.')
+    parser.add_argument('--total_number_file', type=int, default=50,
+                        help='The total number of file with will be use for the training.')
+    parser.add_argument('--number_file_per_iteration', type=int, default=50,
+                        help='The maximum number of files that can be load in the memory.')
+
     FLAGS = parser.parse_args()
+    random.seed(time.time())
     main()
-    # tf.app.run() TODO analyser ce que ça fait
