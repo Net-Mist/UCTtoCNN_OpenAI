@@ -2,3 +2,4 @@ dataset/
 .idea/
 *.npz
 output*
+Tensorflow_outputs
