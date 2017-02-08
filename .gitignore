@@ -3,3 +3,4 @@ dataset/
 *.npz
 output*
 Tensorflow_outputs
+network/__pycache__

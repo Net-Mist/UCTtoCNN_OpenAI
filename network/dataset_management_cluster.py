@@ -31,7 +31,7 @@ def load_data(files_to_load: [], files_dir: str, testing_percentage: float, vali
         file_name = files_dir + '/data' + str(file_number) + '.npz'
         print('load', file_name)
         file = np.load(file_name)
-        total_number_data += file['nb_frames']
+        total_number_data += file['nb_frames'][0]
         files.append(file)
 
     # Create the numpy array to store the data
@@ -54,7 +54,7 @@ def load_data(files_to_load: [], files_dir: str, testing_percentage: float, vali
     labels = labels[perm]
 
     # Prepare the result
-    result = {
+    image_lists = {
         'training': {
             'data': [],
             'label': [],
@@ -72,22 +72,23 @@ def load_data(files_to_load: [], files_dir: str, testing_percentage: float, vali
         }
     }
 
+    # Fill the result
     for i in range(len(images)):
         random_percentage = np.random.randint(100)
         if random_percentage < validation_percentage:
-            result['validation']['data'].append(images[i])
-            result['validation']['label'].append(labels[i])
+            image_lists['validation']['data'].append(images[i])
+            image_lists['validation']['label'].append(labels[i])
         elif random_percentage < (testing_percentage + validation_percentage):
-            result['testing']['data'].append(images[i])
-            result['testing']['label'].append(labels[i])
+            image_lists['testing']['data'].append(images[i])
+            image_lists['testing']['label'].append(labels[i])
         else:
-            result['training']['data'].append(images[i])
-            result['training']['label'].append(labels[i])
+            image_lists['training']['data'].append(images[i])
+            image_lists['training']['label'].append(labels[i])
 
-    print(str(len(result['training']['data'])) + ' training images, ' + str(
-        len(result['testing']['data'])) + ' testing images ' + str(
-        len(result['validation']['data'])) + ' validation images.')
-    return result
+    print(str(len(image_lists['training']['data'])) + ' training images, ' + str(
+        len(image_lists['testing']['data'])) + ' testing images ' + str(
+        len(image_lists['validation']['data'])) + ' validation images.')
+    return image_lists
 
 
 def get_random_cached_images(image_lists: {}, how_many: int, category: str) -> ([], [], bool):
@@ -99,7 +100,6 @@ def get_random_cached_images(image_lists: {}, how_many: int, category: str) -> (
     Returns:
         List of bottleneck arrays and their corresponding ground truths.
     """
-
 
     images = []
     labels = []

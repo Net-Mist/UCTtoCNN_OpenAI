@@ -81,8 +81,9 @@ def main():
         print('Init the neural network')
         sess.run(init)
 
+        global_step = 0
         for epoch_i in range(FLAGS.how_many_epochs):
-            print("epoch n'" + epoch_i)
+            print("epoch n'" + str(epoch_i + 1))
             files_to_load = list(range(1, FLAGS.total_number_file + 1))
 
             # if there is still files to load
@@ -91,17 +92,18 @@ def main():
                 # we work with multiple epoch, we need to have the same testing and training set.
                 files_loaded = []
                 for _ in range(min(FLAGS.number_file_per_iteration, len(files_to_load))):
-                    random.seed(files_to_load)
-                    index = random.randrange(len(files_to_load))
+                    np.random.seed(files_to_load)
+                    index = np.random.randint(len(files_to_load))
                     files_loaded.append(files_to_load[index])
                     files_to_load = files_to_load[:index] + files_to_load[index + 1:]
 
                 # Load the data and split them randomly between training, testing and validation set
-                image_lists = load_data(files_to_load, FLAGS.files_dir, FLAGS.testing_percentage,
+                image_lists = None
+                image_lists = load_data(files_loaded, FLAGS.files_dir, FLAGS.testing_percentage,
                                         FLAGS.validation_percentage)
 
                 # Start the training loop.
-                how_many_training_steps = int(len(image_lists['training']['data'])/FLAGS.batch_size)
+                how_many_training_steps = int(len(image_lists['training']['data']) / FLAGS.batch_size)
 
                 for step in range(how_many_training_steps):
                     start_time = time.time()
@@ -115,24 +117,25 @@ def main():
                     _, loss_value = sess.run([train_op, loss], feed_dict=feed_dict)
 
                     duration = time.time() - start_time
-                    print("duration : ", duration)
+                    # print("duration : ", duration)
 
                     # Write the summaries and save a checkpoint fairly often.
                     if (step + 1) % FLAGS.eval_step_interval == 0 or (step + 1) == how_many_training_steps:
                         # Save
                         checkpoint_file = os.path.join(FLAGS.log_dir, 'model.ckpt')
-                        saver.save(sess, checkpoint_file, global_step=step)
+                        saver.save(sess, checkpoint_file, global_step=global_step)
 
                         # Eval training
-                        do_eval(sess, eval_correct, feed_dict, 'training', train_writer, summary, step)
+                        do_eval(sess, eval_correct, feed_dict, 'training', train_writer, summary, global_step)
 
                         # Eval testing
                         feed_dict, init_index = fill_feed_dict('testing', image_lists, image_placeholder,
                                                                labels_placeholder,
                                                                keep_prob_placeholder, 1.0)
-                        do_eval(sess, eval_correct, feed_dict, 'testing', test_writer, summary, step)
+                        do_eval(sess, eval_correct, feed_dict, 'testing', test_writer, summary, global_step)
                         if init_index:
                             print("reinitialise cached images for testing set")
+                    global_step += 1
 
 
 if __name__ == '__main__':
@@ -141,14 +144,14 @@ if __name__ == '__main__':
                         help='How many epochs to run before ending.')
     parser.add_argument('--learning_rate', type=float, default=0.0001,
                         help='How large a learning rate to use when training.')
-    parser.add_argument('--testing_percentage', type=int, default=10,
+    parser.add_argument('--testing_percentage', type=int, default=1,
                         help='What percentage of images to use as a test set.')
     parser.add_argument('--validation_percentage', type=int, default=0,
                         help='What percentage of images to use as a validation set.')
     parser.add_argument('--eval_step_interval', type=int, default=100,
                         help='How often to evaluate the training results.')
     parser.add_argument('--batch_size', type=int, default=50, help='How many images to train on at a time.')
-    parser.add_argument('--log_dir', type=str, default='/tmp/TensorFlow-VIN',
+    parser.add_argument('--log_dir', type=str, default='/tmp/TensorFlow-CNN',
                         help='Path to folders to log training.')
     # For the cluster
     parser.add_argument('--files_dir', type=str, default='/hpctmp2/e0046667/CNN',
