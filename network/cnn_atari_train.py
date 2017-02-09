@@ -140,7 +140,7 @@ def main():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--how_many_epochs', type=int, default=3,
+    parser.add_argument('--how_many_epochs', type=int, default=30,
                         help='How many epochs to run before ending.')
     parser.add_argument('--learning_rate', type=float, default=0.0001,
                         help='How large a learning rate to use when training.')
@@ -151,12 +151,12 @@ if __name__ == '__main__':
     parser.add_argument('--eval_step_interval', type=int, default=100,
                         help='How often to evaluate the training results.')
     parser.add_argument('--batch_size', type=int, default=50, help='How many images to train on at a time.')
-    parser.add_argument('--log_dir', type=str, default='/tmp/TensorFlow-CNN',
+    parser.add_argument('--log_dir', type=str, default='/hpctmp2/e0046667/TensorFlow-CNN',
                         help='Path to folders to log training.')
     # For the cluster
     parser.add_argument('--files_dir', type=str, default='/hpctmp2/e0046667/CNN',
                         help='Path to the folder which contain the npz files.')
-    parser.add_argument('--total_number_file', type=int, default=50,
+    parser.add_argument('--total_number_file', type=int, default=210,
                         help='The total number of file with will be use for the training.')
     parser.add_argument('--number_file_per_iteration', type=int, default=50,
                         help='The maximum number of files that can be load in the memory.')

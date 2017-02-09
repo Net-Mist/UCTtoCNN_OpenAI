@@ -35,8 +35,8 @@ def load_data(files_to_load: [], files_dir: str, testing_percentage: float, vali
         files.append(file)
 
     # Create the numpy array to store the data
-    images = np.zeros((total_number_data, 84, 84, 4), dtype='b')
-    labels = np.zeros(total_number_data, dtype='b')
+    images = np.zeros((total_number_data, 84, 84, 4), dtype='B')
+    labels = np.zeros(total_number_data, dtype='B')
 
     # fill the numpy array
     current_frame = 0
