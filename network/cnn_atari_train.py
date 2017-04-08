@@ -150,7 +150,7 @@ if __name__ == '__main__':
                         help='What percentage of images to use as a validation set.')
     parser.add_argument('--eval_step_interval', type=int, default=100,
                         help='How often to evaluate the training results.')
-    parser.add_argument('--batch_size', type=int, default=50, help='How many images to train on at a time.')
+    parser.add_argument('--batch_size', type=int, default=32, help='How many images to train on at a time.')
     parser.add_argument('--log_dir', type=str, default='/hpctmp2/e0046667/TensorFlow-CNN',
                         help='Path to folders to log training.')
     # For the cluster

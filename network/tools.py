@@ -28,6 +28,7 @@ def convolution_layer_relu(kernel_shape, strides, input):
         h = tf.nn.relu(tf.nn.bias_add(conv, biases))
     return h
 
+
 def fully_connected_relu(input_size, output_size, input):
     with tf.name_scope('fully_connected'):
         weights = tf.Variable(initial_value=tf.truncated_normal(shape=[input_size, output_size], stddev=0.1),

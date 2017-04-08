@@ -53,17 +53,6 @@ def load_data(testing_percentage: float, validation_percentage: float) -> {}:
 
         actuel += file['images'].shape[0]
 
-        # print(images.shape)
-        # print(labels.shape)
-
-    # Subtract the mean and scale the input to lie in [-1,1] TODO : substract the real mean...
-    # print("Convert to float64")
-    # images = np.array(images, dtype=np.float16)
-    # print("Scale")
-    # images = images / (255 / 2)
-    # print("Center")
-    # images = images - 1
-
     # Prepare the result
     result = {}
     for i in range(3):

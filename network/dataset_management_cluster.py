@@ -112,6 +112,5 @@ def get_random_cached_images(image_lists: {}, how_many: int, category: str) -> (
         if image_lists[category]['current_index'] >= len(image_lists[category]['data']):
             image_lists[category]['current_index'] = 0
             init_index = True
-            # TODO maybe shuffle the data each time the index is reinit ?
 
     return images, labels, init_index

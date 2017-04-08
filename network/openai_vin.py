@@ -4,7 +4,9 @@ from cnn_atari import *
 import tensorflow as tf
 import numpy as np
 from PIL import Image
-import time
+import sys
+
+save = sys.argv[1]
 
 ATARI_SCREEN_WIDTH = 210
 ATARI_SCREEN_HEIGHT = 160
@@ -22,23 +24,20 @@ index_to_action = [0, 3, 4]
 def main():
     previous_images = np.zeros((84, 84, 4), dtype='b')
     print("Init OpenAI part")
-    # env = gym.make('PongNoFrameskip-v3')
     env = gym.make('Pong-v3')
     env = wrappers.Monitor(env, '/tmp/pong_experiment', force=True)
     print(env.action_space)
 
-    env.frameskip = 3
+    env.frameskip = 4
 
     observation = env.reset()
-    # print(observation.shape)  # (210, 160, 3)
     with tf.Graph().as_default():
         print('Create neural network')
         images_placeholder, keep_prob_placeholder = placeholders_openai()
         logits = inference(images_placeholder, keep_prob_placeholder, NUM_ACTIONS, 1)
         sess = tf.Session()
         saver = tf.train.Saver()
-        # saver.restore(sess, "../TensorFlow-VIN/model.ckpt-102899")
-        saver.restore(sess, "/tmp/TensorFlow-CNN/model.ckpt-189402")
+        saver.restore(sess, save)
 
         print("Launch game")
         for i in range(1000000):
@@ -53,14 +52,9 @@ def main():
             previous_images[:, :, 0] = game_image
 
             l = sess.run([logits], feed_dict={images_placeholder: [previous_images], keep_prob_placeholder: 1})
-            # observation, reward, done, info = env.step(labels[np.argmax(l)])
-            # print(l[0][0])
             l = softmax(l[0][0])
             action = index_to_action[np.argmax(l)]
             observation, reward, done, info = env.step(action)
-            # print(l, action)
-            # time.sleep(0.1)
-            # print(l)
             if done:
                 print("Episode finished")
                 break

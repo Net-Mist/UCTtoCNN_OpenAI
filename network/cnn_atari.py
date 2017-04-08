@@ -101,11 +101,7 @@ def training(loss, learning_rate):
     # Create a variable to track the global step.
     global_step = tf.Variable(0, name='global_step', trainable=False)
     # Create the gradient descent optimizer with the given learning rate.
-    optimizer = tf.train.AdamOptimizer(learning_rate)  # from the website TODO: tester l'autre
-    # optimizer = tf.train.GradientDescentOptimizer(learning_rate)  # from the website TODO: tester l'autre
-    # optimizer = tf.train.RMSPropOptimizer(learning_rate * (tf.pow(0.9, (global_step / 1000))),
-    #                                       decay=0.9)  # from VIN implementation
-    # optimizer = tf.train.RMSPropOptimizer(learning_rate=learning_rate, epsilon=1e-6, centered=True)
+    optimizer = tf.train.AdamOptimizer(learning_rate)
     # Use the optimizer to apply the gradients that minimize the loss
     # (and also increment the global step counter) as a single training step.
     train_op = optimizer.minimize(loss, global_step=global_step)
